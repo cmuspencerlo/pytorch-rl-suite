@@ -14,6 +14,7 @@ def make_env(env_id, rank):
             env = make_atari(env_id)
         if is_atari:
             env = wrap_deepmind(env)
+        env.seed(rank)
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
         obs_shape = env.observation_space.shape
         # (84, 84, 1) Only black and white

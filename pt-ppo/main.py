@@ -32,11 +32,11 @@ if __name__ == "__main__":
                         help='max norm of gradients (default: 0.5)')
     parser.add_argument('--seed', type=int, default=1,
                         help='random seed (default: 1)')
-    parser.add_argument('--num-steps', type=int, default=5, help='number of forward steps in A2C (default: 5)')
-    parser.add_argument('--ppo-epoch', type=int, default=2,
+    parser.add_argument('--num-steps', type=int, default=256, help='number of forward steps in A2C (default: 128)')
+    parser.add_argument('--ppo-epoch', type=int, default=4,
                         help='number of ppo epochs (default: 4)')
     parser.add_argument('--num-batch', type=int, default=32,
-                        help='number of batches for ppo (default: 32)')
+                        help='number of batches for ppo (default: 4)')
     parser.add_argument('--clip-param', type=float, default=0.2,
                         help='ppo clip parameter (default: 0.2)')
     parser.add_argument('--num-stack', type=int, default=4,
@@ -49,10 +49,6 @@ if __name__ == "__main__":
                         help='number of frames to train (default: 10e6)')
     parser.add_argument('--env-name', default='PongNoFrameskip-v4',
                         help='environment to train on (default: PongNoFrameskip-v4)')
-    parser.add_argument('--log-dir', default='/tmp/gym/',
-                        help='directory to save agent logs (default: /tmp/gym)')
-    parser.add_argument('--save-dir', default='./trained_models/',
-                        help='directory to save agent logs (default: ./trained_models/)')
     parser.add_argument('--recurrent-policy', action='store_true', default=False,
                         help='use a recurrent policy')
     args = parser.parse_args()

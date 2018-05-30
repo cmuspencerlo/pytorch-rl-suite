@@ -12,7 +12,7 @@ class RolloutStorage(object):
         self.action_log_probs = torch.zeros(num_steps, NUM_PROCESSES, 1)
 
         # This should be a q-value prediction
-        self.value_preds = torch.zeros(num_steps + 1, NUM_PROCESSES, 1)
+        self.q_values = torch.zeros(num_steps + 1, NUM_PROCESSES, 1)
         self.values = torch.zeros(num_steps + 1, NUM_PROCESSES, 1)
         self.masks = torch.ones(num_steps + 1, NUM_PROCESSES, 1)
 
@@ -20,7 +20,7 @@ class RolloutStorage(object):
             action_shape = 1
         else:
             action_shape = action_space.shape[0]
-        self.actions = torch.zeros(num_steps, NUM_PROCESSES, action_shape)
+        self.actions = torch.zeros(num_steps, NUM_PROCESSES, action_shape).long()
         if action_space.__class__.__name__ == 'Discrete':
             self.actions = self.actions.long()
         self.num_steps = num_steps
@@ -31,7 +31,7 @@ class RolloutStorage(object):
         self.states = self.states.cuda()
         self.rewards = self.rewards.cuda()
         self.values = self.values.cuda()
-        self.value_preds = self.value_preds.cuda()
+        self.q_values = self.q_values.cuda()
         self.action_log_probs = self.action_log_probs.cuda()
         self.actions = self.actions.cuda()
         self.masks = self.masks.cuda()
@@ -44,7 +44,7 @@ class RolloutStorage(object):
         self.actions[self.index].copy_(action)
         self.action_log_probs[self.index].copy_(action_log_prob)
         self.rewards[self.index].copy_(reward)
-        self.value_preds[self.index].copy_(value_pred)
+        self.q_values[self.index].copy_(value_pred)
 
         self.index = (self.index + 1) % self.num_steps
 
@@ -54,19 +54,19 @@ class RolloutStorage(object):
         self.states[0].copy_(self.states[-1])
         self.masks[0].copy_(self.masks[-1])
 
-    def compute_value_preds(self, next_state_value, use_gae, GAMMA, TAU):
+    def compute_q_values(self, next_state_value, use_gae, GAMMA, TAU):
         if use_gae:
             self.values[-1] = next_state_value
             gae = 0
             for index in reversed(range(self.rewards.size(0))):
                 delta = self.rewards[index] + GAMMA * self.masks[index + 1] * self.values[index + 1] - self.values[index]
                 gae = delta + GAMMA * TAU * self.masks[index + 1] * gae
-                self.value_preds[index] = gae + self.values[index]
+                self.q_values[index] = gae + self.values[index]
         else:
-            self.value_preds[-1] = next_state_value
+            self.q_values[-1] = next_state_value
             for index in reversed(range(self.rewards.size(0))):
-                self.value_preds[index] = self.rewards[index] + \
-                    GAMMA * self.masks[index + 1] * self.value_preds[index + 1]
+                self.q_values[index] = self.rewards[index] + \
+                    GAMMA * self.masks[index + 1] * self.q_values[index + 1]
 
     def feed_forward_generator(self, advantages, num_batch):
         num_steps = self.rewards.size()[0]
@@ -80,18 +80,17 @@ class RolloutStorage(object):
 
             # Truncate part
             observations_batch = self.observations[:-1].view(-1, \
-                                        *self.observations.size()[2:])[indices]
+                                         *self.observations.size()[2:])[indices]
             states_batch = self.states[:-1].view(-1, self.states.size(-1))[indices]
             masks_batch = self.masks[:-1].view(-1, 1)[indices]
-            value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
+            q_values_batch = self.q_values[:-1].view(-1, 1)[indices]
 
             # Non-truncate part
             actions_batch = self.actions.view(-1, self.actions.size(-1))[indices]
             old_action_log_probs_batch = self.action_log_probs.view(-1, 1)[indices]
             adv_target = advantages.view(-1, 1)[indices]
-
             yield observations_batch, states_batch, actions_batch, \
-                value_preds_batch, masks_batch, old_action_log_probs_batch, adv_target
+                q_values_batch, masks_batch, old_action_log_probs_batch, adv_target
 
 
     def recurrent_generator(self, advantages, num_mini_batch):

@@ -5,6 +5,7 @@ import torch
 from torch.autograd import Variable
 
 CUDA_FLAG = torch.cuda.is_available()
+LONG = torch.cuda.LongTensor if CUDA_FLAG else torch.LongTensor
 FLOAT = torch.cuda.FloatTensor if CUDA_FLAG else torch.FloatTensor
 DOUBLE = torch.cuda.DoubleTensor if CUDA_FLAG else torch.DoubleTensor
 
@@ -22,13 +23,14 @@ def print_black(s): print("\033[98m {}\033[00m" .format(s))
 def to_numpy(var):
     return var.cpu().data.numpy() if CUDA_FLAG else var.data.numpy()
 
-def to_var(data, volatile=False, requires_grad=False, dtype=FLOAT):
-    if data.__class__.__name__ == 'ndarray':
-        return Variable(
-            torch.from_numpy(data), volatile=volatile, requires_grad=requires_grad
-        ).type(dtype)
-    return Variable(data, volatile=volatile, requires_grad=requires_grad).type(dtype)
-
+# Assume tensor input
+def to_var(tensor, volatile=False, requires_grad=False):
+    tensor_type = tensor.type()
+    if 'Float' in tensor_type:
+        return Variable(tensor, volatile=volatile, requires_grad=requires_grad).type(FLOAT)
+    if 'Double' in tensor_type:
+        return Variable(tensor, volatile=volatile, requires_grad=requires_grad).type(DOUBLE)
+    return Variable(tensor, volatile=volatile, requires_grad=requires_grad).type(LONG)
 
 # def get_output_folder(parent_dir, env_name):
 #     """Return save folder.
